@@ -1,0 +1,6 @@
+@UIL_HostAddress = http://localhost:5142
+
+GET {{UIL_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
