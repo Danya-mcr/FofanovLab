@@ -306,6 +306,12 @@ namespace PointObjectDetection.UI
         /// <summary>
         /// Запуск обнаружения объектов
         /// </summary>
+        /// <summary>
+        /// Запуск обнаружения объектов
+        /// </summary>
+        /// <summary>
+        /// Запуск обнаружения объектов
+        /// </summary>
         private void DetectObjects()
         {
             if (_originalImage == null)
@@ -323,19 +329,32 @@ namespace PointObjectDetection.UI
                 int objectSide = (int)_nudObjectSide.Value;
                 int minArea = objectSide * objectSide;
 
+                // Счетчик для обновления UI не на каждом пикселе (для производительности)
+                int totalPixels = _originalImage.Width * _originalImage.Height;
+                int processedPixels = 0;
+                int updateInterval = Math.Max(1, totalPixels / 100); // Обновляем ~100 раз за проход
+
                 // Функция сегментации (Разработчик 4)
                 Func<int, int, double, double, bool> segmentationFunc = (x, y, mean, stdDev) =>
                 {
                     var (lower, upper) = ThresholdCalculator.ComputeBounds(mean, stdDev, falseAlarmProb);
                     byte brightness = ImageProcessor.GetPixelBrightness(_originalImage, x, y);
 
-                    // Обновляем отображение статистики для последнего пикселя
-                    _currentMean = mean;
-                    _currentStdDev = stdDev;
-                    _currentLower = lower;
-                    _currentUpper = upper;
+                    // Обновляем статистику периодически, а не каждый пиксель
+                    processedPixels++;
+                    if (processedPixels % updateInterval == 0 || processedPixels == totalPixels)
+                    {
+                        _currentMean = mean;
+                        _currentStdDev = stdDev;
+                        _currentLower = lower;
+                        _currentUpper = upper;
 
-                    UpdateStatsDisplay();
+                        // Асинхронное обновление UI
+                        BeginInvoke(new Action(() => {
+                            UpdateStatsDisplay();
+                            UpdateStatus("Обработка: {0:F1}%", (processedPixels * 100.0) / totalPixels);
+                        }));
+                    }
 
                     return ThresholdCalculator.SegmentPixel(brightness, lower, upper);
                 };
@@ -345,6 +364,7 @@ namespace PointObjectDetection.UI
                     _originalImage,
                     _damageMask,
                     windowSize,
+                    objectSide,
                     segmentationFunc);
 
                 // Маркировка связных компонент (Разработчик 3)
@@ -354,8 +374,8 @@ namespace PointObjectDetection.UI
                 var filteredObjects = ObjectDetector.FilterByArea(allObjects, minArea);
 
                 // Принятие решения и формирование отчета (Разработчик 3)
-                int totalPixels = _originalImage.Width * _originalImage.Height;
-                var result = ObjectDetector.MakeDecision(filteredObjects, windowSize, falseAlarmProb, minArea, totalPixels);
+                var result = ObjectDetector.MakeDecision(filteredObjects, windowSize, falseAlarmProb, minArea,
+                    _originalImage.Width * _originalImage.Height);
 
                 // Отображение результатов
                 _txtResults.Text = result.Report;

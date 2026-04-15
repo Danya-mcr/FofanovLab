@@ -19,10 +19,6 @@ namespace PointObjectDetection.Core
                 return 0;
 
             Color pixel = image.GetPixel(x, y);
-
-            // ОТЛАДКА
-            System.Diagnostics.Debug.WriteLine($"GetBrightness({x},{y}): R={pixel.R}, G={pixel.G}, B={pixel.B}");
-
             return (byte)((pixel.R + pixel.G + pixel.B) / 3);
         }
 
@@ -33,6 +29,7 @@ namespace PointObjectDetection.Core
         /// <param name="centerX">X проверяемого пикселя</param>
         /// <param name="centerY">Y проверяемого пикселя</param>
         /// <param name="windowSize">Размер окрестности (нечетное число)</param>
+        /// <param name="objectSide">Размер стороны объекта для исключения из статистики</param>
         /// <param name="damageMask">Маска поврежденных пикселей</param>
         /// <returns>(среднее, стандартное отклонение)</returns>
         public static (double mean, double stdDev) CalculateStatistics(
@@ -40,9 +37,11 @@ namespace PointObjectDetection.Core
             int centerX,
             int centerY,
             int windowSize,
+            int objectSide,
             bool[,] damageMask)
         {
             int radius = windowSize / 2;
+            int halfObject = objectSide / 2;
             List<double> values = new List<double>();
 
             for (int dy = -radius; dy <= radius; dy++)
@@ -52,8 +51,9 @@ namespace PointObjectDetection.Core
                     int x = centerX + dx;
                     int y = centerY + dy;
 
-                    // Пропускаем центральный пиксель
-                    if (x == centerX && y == centerY)
+                    // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Пропускаем всю область предполагаемого объекта
+                    // а не только центральный пиксель
+                    if (Math.Abs(dx) <= halfObject && Math.Abs(dy) <= halfObject)
                         continue;
 
                     // Проверка границ изображения
@@ -93,18 +93,21 @@ namespace PointObjectDetection.Core
             return (mean, stdDev);
         }
 
+
         /// <summary>
         /// Перебор всех пикселей изображения и применение функции сегментации
         /// </summary>
         /// <param name="image">Изображение</param>
         /// <param name="damageMask">Маска повреждений</param>
         /// <param name="windowSize">Размер окрестности</param>
+        /// <param name="objectSide">Размер стороны объекта</param>
         /// <param name="segmentationFunc">Функция сегментации (принимает координаты, μ, σ, возвращает true если объект)</param>
         /// <returns>Бинарная маска (true - объект, false - фон)</returns>
         public static bool[,] IterateAllPixels(
             Bitmap image,
             bool[,] damageMask,
             int windowSize,
+            int objectSide,
             Func<int, int, double, double, bool> segmentationFunc)
         {
             int width = image.Width;
@@ -120,8 +123,8 @@ namespace PointObjectDetection.Core
                     if (damageMask != null && damageMask[x, y])
                         continue;
 
-                    // Вычисляем статистику по окрестности
-                    var (mean, stdDev) = CalculateStatistics(image, x, y, windowSize, damageMask);
+                    // Вычисляем статистику по окрестности с учетом размера объекта
+                    var (mean, stdDev) = CalculateStatistics(image, x, y, windowSize, objectSide, damageMask);
 
                     // Применяем функцию сегментации
                     resultMask[x, y] = segmentationFunc(x, y, mean, stdDev);
