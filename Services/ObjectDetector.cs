@@ -275,7 +275,7 @@ namespace PointObjectDetection.Core
                 }
                 result.Report += "\nРЕШЕНИЕ: ОБЪЕКТ ОБНАРУЖЕН\n";
             }
-            else
+            else 
             {
                 result.Report += "РЕШЕНИЕ: ОБЪЕКТ НЕ ОБНАРУЖЕН\n";
             }

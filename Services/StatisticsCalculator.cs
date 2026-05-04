@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Imaging;
 
 namespace PointObjectDetection.Core
 {
@@ -11,79 +12,63 @@ namespace PointObjectDetection.Core
     public static class StatisticsCalculator
     {
         /// <summary>
-        /// Получение яркости пикселя (0-255)
-        /// </summary>
-        private static byte GetBrightness(Bitmap image, int x, int y)
-        {
-            if (x < 0 || x >= image.Width || y < 0 || y >= image.Height)
-                return 0;
-
-            Color pixel = image.GetPixel(x, y);
-            return (byte)((pixel.R + pixel.G + pixel.B) / 3);
-        }
-
-        /// <summary>
         /// Расчет среднего значения и стандартного отклонения по окрестности пикселя
         /// </summary>
-        /// <param name="image">Изображение</param>
-        /// <param name="centerX">X проверяемого пикселя</param>
-        /// <param name="centerY">Y проверяемого пикселя</param>
-        /// <param name="windowSize">Размер окрестности (нечетное число)</param>
-        /// <param name="objectSide">Размер стороны объекта для исключения из статистики</param>
-        /// <param name="damageMask">Маска поврежденных пикселей</param>
-        /// <returns>(среднее, стандартное отклонение)</returns>
-        public static (double mean, double stdDev) CalculateStatistics(
-            Bitmap image,
-            int centerX,
-            int centerY,
-            int windowSize,
-            int objectSide,
-            bool[,] damageMask)
+        public static unsafe (double mean, double stdDev) CalculateStatistics(
+            Bitmap image, int centerX, int centerY, int windowSize,
+            int objectSide, bool[,] damageMask)
         {
+            int width = image.Width;
+            int height = image.Height;
             int radius = windowSize / 2;
-            int halfObject = objectSide / 2;
-            List<double> values = new List<double>();
+            List<double> values = new List<double>(windowSize * windowSize);
 
-            for (int dy = -radius; dy <= radius; dy++)
+            // Блокируем битмап в памяти
+            BitmapData bmpData = image.LockBits(
+                new Rectangle(0, 0, width, height),
+                ImageLockMode.ReadOnly,
+                PixelFormat.Format24bppRgb);
+
+            try
             {
-                for (int dx = -radius; dx <= radius; dx++)
+                byte* ptr = (byte*)bmpData.Scan0.ToPointer();
+                int stride = bmpData.Stride;
+
+                for (int dy = -radius; dy <= radius; dy++)
                 {
-                    int x = centerX + dx;
                     int y = centerY + dy;
+                    if (y < 0 || y >= height) continue;
 
-                    // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Пропускаем всю область предполагаемого объекта
-                    // а не только центральный пиксель
-                    if (Math.Abs(dx) <= halfObject && Math.Abs(dy) <= halfObject)
-                        continue;
+                    for (int dx = -radius; dx <= radius; dx++)
+                    {
+                        // Исключаем центральный пиксель
+                        if (dx == 0 && dy == 0) continue;
 
-                    // Проверка границ изображения
-                    if (x < 0 || x >= image.Width || y < 0 || y >= image.Height)
-                        continue;
+                        int x = centerX + dx;
+                        if (x < 0 || x >= width) continue;
 
-                    // Проверка поврежденных пикселей
-                    if (damageMask != null && damageMask[x, y])
-                        continue;
+                        // Проверка маски повреждений
+                        if (damageMask != null && damageMask[x, y]) continue;
 
-                    // Получаем яркость пикселя
-                    Color pixel = image.GetPixel(x, y);
-                    double brightness = (pixel.R + pixel.G + pixel.B) / 3.0;
-                    values.Add(brightness);
+                        // Прямой доступ к байтам (BGR порядок)
+                        byte* pixel = ptr + y * stride + x * 3;
+                        double brightness = (pixel[2] + pixel[1] + pixel[0]) / 3.0;
+                        values.Add(brightness);
+                    }
                 }
             }
-
-            // Если нет ни одного пикселя для анализа
-            if (values.Count == 0)
+            finally
             {
-                return (0, 0);
+                image.UnlockBits(bmpData);
             }
 
-            // Вычисляем среднее
+            // Расчет статистики
+            if (values.Count == 0) return (0, 0);
+
             double sum = 0;
-            foreach (double val in values)
-                sum += val;
+            foreach (double val in values) sum += val;
             double mean = sum / values.Count;
 
-            // Вычисляем стандартное отклонение
             double sumSquaredDiff = 0;
             foreach (double val in values)
                 sumSquaredDiff += (val - mean) * (val - mean);
@@ -93,16 +78,9 @@ namespace PointObjectDetection.Core
             return (mean, stdDev);
         }
 
-
         /// <summary>
         /// Перебор всех пикселей изображения и применение функции сегментации
         /// </summary>
-        /// <param name="image">Изображение</param>
-        /// <param name="damageMask">Маска повреждений</param>
-        /// <param name="windowSize">Размер окрестности</param>
-        /// <param name="objectSide">Размер стороны объекта</param>
-        /// <param name="segmentationFunc">Функция сегментации (принимает координаты, μ, σ, возвращает true если объект)</param>
-        /// <returns>Бинарная маска (true - объект, false - фон)</returns>
         public static bool[,] IterateAllPixels(
             Bitmap image,
             bool[,] damageMask,
@@ -114,19 +92,14 @@ namespace PointObjectDetection.Core
             int height = image.Height;
             bool[,] resultMask = new bool[width, height];
 
-            // Проходим по всем пикселям изображения
             for (int y = 0; y < height; y++)
             {
                 for (int x = 0; x < width; x++)
                 {
-                    // Пропускаем поврежденные пиксели
                     if (damageMask != null && damageMask[x, y])
                         continue;
 
-                    // Вычисляем статистику по окрестности с учетом размера объекта
                     var (mean, stdDev) = CalculateStatistics(image, x, y, windowSize, objectSide, damageMask);
-
-                    // Применяем функцию сегментации
                     resultMask[x, y] = segmentationFunc(x, y, mean, stdDev);
                 }
             }

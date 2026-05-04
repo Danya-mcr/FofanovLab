@@ -74,11 +74,21 @@ namespace PointObjectDetection.UI
             // ========== PICTUREBOX ==========
             _pictureBox = new PictureBox()
             {
-                Dock = DockStyle.Fill,
-                SizeMode = PictureBoxSizeMode.Zoom,
+                // Dock = DockStyle.Fill, // Убираем Dock
+                SizeMode = PictureBoxSizeMode.AutoSize, // Не масштабировать
                 BackColor = Color.FromArgb(40, 40, 40)
             };
             _pictureBox.MouseMove += PictureBox_MouseMove;
+            _pictureBox.Cursor = Cursors.Cross;
+
+            Panel picturePanel = new Panel()
+            {
+                Dock = DockStyle.Fill,
+                AutoScroll = true,
+                BackColor = Color.FromArgb(40, 40, 40)
+            };
+            picturePanel.Controls.Add(_pictureBox);
+            picturePanel.Cursor = Cursors.Cross;
 
             // ========== RIGHT PANEL ==========
             _rightPanel = new Panel()
@@ -101,7 +111,7 @@ namespace PointObjectDetection.UI
             int yStep = 35;
 
             Label lblWindow = new Label() { Text = "Сторона окрестности (нечетное):", Location = new Point(10, yPos), AutoSize = true };
-            _nudWindowSize = new NumericUpDown() { Location = new Point(200, yPos - 3), Width = 80, Minimum = 3, Maximum = 31, Value = 3, Increment = 2 };
+            _nudWindowSize = new NumericUpDown() { Location = new Point(200, yPos - 3), Width = 80, Minimum = 3, Maximum = 101, Value = 3, Increment = 2 };
             yPos += yStep;
 
             Label lblProb = new Label() { Text = "Вероятность p (ложного обнар.):", Location = new Point(10, yPos), AutoSize = true };
@@ -154,6 +164,18 @@ namespace PointObjectDetection.UI
 
             _actionsBox.Controls.AddRange(new Control[] { _btnDetect, _btnSave });
 
+            Button btnQuickDiag = new Button()
+            {
+                Text = "БЫСТРАЯ ДИАГНОСТИКА",
+                Location = new Point(10, 100),
+                Width = 310,
+                Height = 30,
+                BackColor = Color.LightYellow
+            };
+            btnQuickDiag.Click += (s, e) => QuickDiagnose();
+            _actionsBox.Height = 150;
+            _actionsBox.Controls.Add(btnQuickDiag);
+
             // ---- Результаты ----
             _resultsBox = new GroupBox()
             {
@@ -185,7 +207,7 @@ namespace PointObjectDetection.UI
             _statusStrip.Items.Add(_statusLabel);
 
             // ========== СБОРКА ==========
-            this.Controls.Add(_pictureBox);
+            this.Controls.Add(picturePanel);
             this.Controls.Add(_rightPanel);
             this.Controls.Add(_statusStrip);
             this.Controls.Add(_toolStrip);
@@ -338,7 +360,9 @@ namespace PointObjectDetection.UI
                 Func<int, int, double, double, bool> segmentationFunc = (x, y, mean, stdDev) =>
                 {
                     var (lower, upper) = ThresholdCalculator.ComputeBounds(mean, stdDev, falseAlarmProb);
-                    byte brightness = ImageProcessor.GetPixelBrightness(_originalImage, x, y);
+
+                    Color pixel = _originalImage.GetPixel(x, y);
+                    byte brightness = (byte)((pixel.R + pixel.G + pixel.B) / 3);
 
                     // Обновляем статистику периодически, а не каждый пиксель
                     processedPixels++;
@@ -356,7 +380,8 @@ namespace PointObjectDetection.UI
                         }));
                     }
 
-                    return ThresholdCalculator.SegmentPixel(brightness, lower, upper);
+                    // ВОЗВРАЩАЕМ РЕЗУЛЬТАТ СЕГМЕНТАЦИИ (с stdDev!)
+                    return ThresholdCalculator.SegmentPixel(brightness, lower, upper, stdDev);
                 };
 
                 // Перебор пикселей (Разработчик 2)
@@ -522,6 +547,9 @@ namespace PointObjectDetection.UI
                 return;
             }
 
+            // Учитываем скролл при расчете координат
+            Point scrollOffset = ((Panel)_pictureBox.Parent).AutoScrollPosition;
+
             float scaleX = (float)_originalImage.Width / _pictureBox.Width;
             float scaleY = (float)_originalImage.Height / _pictureBox.Height;
             int x = (int)(e.X * scaleX);
@@ -529,12 +557,112 @@ namespace PointObjectDetection.UI
 
             if (x >= 0 && x < _originalImage.Width && y >= 0 && y < _originalImage.Height)
             {
-                byte brightness = ImageProcessor.GetPixelBrightness(_originalImage, x, y);
+                Color pixel = _originalImage.GetPixel(x, y);
                 bool isDamaged = _damageMask != null && _damageMask[x, y];
                 string damagedText = isDamaged ? " (ПОВРЕЖДЕН)" : "";
 
-                _statusLabel.Text = $"X: {x,4}  Y: {y,4}  Яркость: {brightness,3}{damagedText}";
+                _statusLabel.Text = $"X: {x,4}  Y: {y,4}  RGB: ({pixel.R}, {pixel.G}, {pixel.B}){damagedText}";
             }
+        }
+
+        private void QuickDiagnose()
+        {
+            if (_originalImage == null) return;
+
+            // Автоматически находим самый темный пиксель на изображении
+            int darkestX = 0, darkestY = 0;
+            byte minBrightness = 255;
+
+            // Для скорости проверяем каждый 10-й пиксель
+            for (int y = 0; y < _originalImage.Height; y += 10)
+            {
+                for (int x = 0; x < _originalImage.Width; x += 10)
+                {
+                    Color p = _originalImage.GetPixel(x, y);
+                    byte b = (byte)((p.R + p.G + p.B) / 3);
+                    if (b < minBrightness)
+                    {
+                        minBrightness = b;
+                        darkestX = x;
+                        darkestY = y;
+                    }
+                }
+            }
+
+            // Уточняем в окрестности найденной точки
+            int searchRadius = 15;
+            for (int y = Math.Max(0, darkestY - searchRadius); y < Math.Min(_originalImage.Height, darkestY + searchRadius); y++)
+            {
+                for (int x = Math.Max(0, darkestX - searchRadius); x < Math.Min(_originalImage.Width, darkestX + searchRadius); x++)
+                {
+                    Color p = _originalImage.GetPixel(x, y);
+                    byte b = (byte)((p.R + p.G + p.B) / 3);
+                    if (b < minBrightness)
+                    {
+                        minBrightness = b;
+                        darkestX = x;
+                        darkestY = y;
+                    }
+                }
+            }
+
+            int testX = darkestX;
+            int testY = darkestY;
+            int windowSize = (int)_nudWindowSize.Value;
+            int objectSide = (int)_nudObjectSide.Value;
+            double falseAlarmProb = (double)_nudFalseAlarmProb.Value;
+
+            // ИСПОЛЬЗУЕМ ТЕ ЖЕ МЕТОДЫ, ЧТО И ОСНОВНОЙ АЛГОРИТМ
+            var (mean, stdDev) = StatisticsCalculator.CalculateStatistics(
+                _originalImage, testX, testY, windowSize, objectSide, _damageMask);
+
+            // Яркость центрального пикселя
+            Color center = _originalImage.GetPixel(testX, testY);
+            byte centerBrightness = (byte)((center.R + center.G + center.B) / 3);
+
+            // ИСПОЛЬЗУЕМ ИСПРАВЛЕННЫЕ МЕТОДЫ
+            var (lower, upper) = ThresholdCalculator.ComputeBounds(mean, stdDev, falseAlarmProb);
+            bool isObject = ThresholdCalculator.SegmentPixel(centerBrightness, lower, upper, stdDev);
+
+            // Дополнительно считаем распределение для информации
+            int radius = windowSize / 2;
+            int darkCount = 0, brightCount = 0;
+
+            for (int dy = -radius; dy <= radius; dy++)
+            {
+                for (int dx = -radius; dx <= radius; dx++)
+                {
+                    int x = testX + dx;
+                    int y = testY + dy;
+
+                    if (x < 0 || x >= _originalImage.Width || y < 0 || y >= _originalImage.Height)
+                        continue;
+
+                    Color p = _originalImage.GetPixel(x, y);
+                    byte b = (byte)((p.R + p.G + p.B) / 3);
+
+                    if (b < 128) darkCount++;
+                    else brightCount++;
+                }
+            }
+
+            // Выводим результат
+            string report = $"=== ДИАГНОСТИКА ПИКСЕЛЯ ({testX}, {testY}) ===\r\n";
+            report += $"Параметры: окрестность={windowSize}, объект={objectSide}, p={falseAlarmProb:E}\r\n\r\n";
+            report += $"Яркость пикселя: {centerBrightness}\r\n";
+            report += $"RGB: ({center.R}, {center.G}, {center.B})\r\n\r\n";
+            report += $"Окрестность {windowSize}x{windowSize}:\r\n";
+            report += $"Темных (<128): {darkCount}\r\n";
+            report += $"Светлых (>=128): {brightCount}\r\n\r\n";
+            report += $"μ (среднее): {mean:F2}\r\n";
+            report += $"σ (СКО): {stdDev:F2}\r\n";
+            report += $"Нижняя граница (после обрезки): {lower:F2}\r\n";
+            report += $"Верхняя граница (после обрезки): {upper:F2}\r\n\r\n";
+            report += $"Проверка: {centerBrightness} < {lower:F2} = {centerBrightness < lower}\r\n";
+            report += $"Проверка: {centerBrightness} > {upper:F2} = {centerBrightness > upper}\r\n";
+            report += $"\r\nОбъект обнаружен (SegmentPixel): {(isObject ? "ДА ✅" : "НЕТ ❌")}";
+
+            _txtResults.Text = report;
         }
     }
 }

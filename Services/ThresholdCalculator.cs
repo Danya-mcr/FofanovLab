@@ -91,15 +91,26 @@ namespace PointObjectDetection.Core
             double stdDev,
             double falseAlarmProb)
         {
-            // Если нет разброса, интервал вырождается в точку
-            if (stdDev == 0)
-                return (mean, mean);
+            double lower, upper;
 
-            // Вычисляем коэффициент k по заданной вероятности
-            double k = NormalQuantile(1 - falseAlarmProb / 2);
+            // Если нет разброса
+            if (stdDev < 0.001)
+            {
+                lower = mean - 5;
+                upper = mean + 5;
+            }
+            else
+            {
+                double k = NormalQuantile(1 - falseAlarmProb / 2);
+                k = Math.Min(k, 5.0);
 
-            double lower = mean - k * stdDev;
-            double upper = mean + k * stdDev;
+                lower = mean - k * stdDev;
+                upper = mean + k * stdDev;
+            }
+
+            // Обрезаем до физических пределов ВСЕГДА
+            lower = Math.Max(0, lower);
+            upper = Math.Min(255, upper);
 
             return (lower, upper);
         }
@@ -112,9 +123,21 @@ namespace PointObjectDetection.Core
         /// <param name="lower">Нижняя граница</param>
         /// <param name="upper">Верхняя граница</param>
         /// <returns>true - объект, false - фон</returns>
-        public static bool SegmentPixel(double brightness, double lower, double upper)
+        // В файле ThresholdCalculator.cs, метод SegmentPixel
+        // В ThresholdCalculator.cs
+        public static bool SegmentPixel(double brightness, double lower, double upper, double stdDev)
         {
-            // Если яркость вне интервала - это объект
+            // Если есть разброс в окрестности (есть контраст)
+            if (stdDev > 10)  // Порог контраста
+            {
+                // Обрезаем границы
+                double effectiveLower = Math.Max(0, lower);
+                double effectiveUpper = Math.Min(255, upper);
+
+                return brightness <= effectiveLower || brightness >= effectiveUpper;
+            }
+
+            // Если контраста нет - используем обычную проверку
             return brightness < lower || brightness > upper;
         }
     }
