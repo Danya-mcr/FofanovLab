@@ -2,18 +2,9 @@ using System;
 
 namespace PointObjectDetection.Core
 {
-    /// <summary>
-    /// Класс для вычисления границ интервала и сегментации
-    /// Разработчик 4 (Оля): Отвечает за пункты: вычисление границ (с нормальным распределением), сегментация
-    /// </summary>
+    /// Разработчик 4 (Оля)
     public static class ThresholdCalculator
     {
-        /// <summary>
-        /// Вычисление квантиля нормального распределения (обратная функция распределения)
-        /// Используется алгоритм AS241 с точностью 1e-16
-        /// </summary>
-        /// <param name="probability">Вероятность (от 0 до 1)</param>
-        /// <returns>Коэффициент k</returns>
         public static double NormalQuantile(double probability)
         {
             // Граничные случаи
@@ -79,13 +70,7 @@ namespace PointObjectDetection.Core
             return (q < 0) ? -result : result;
         }
 
-        /// <summary>
         /// Вычисление границ доверительного интервала
-        /// </summary>
-        /// <param name="mean">Среднее значение (μ)</param>
-        /// <param name="stdDev">Стандартное отклонение (σ)</param>
-        /// <param name="falseAlarmProb">Вероятность ложного обнаружения (p)</param>
-        /// <returns>(нижняя граница, верхняя граница)</returns>
         public static (double lower, double upper) ComputeBounds(
             double mean,
             double stdDev,
@@ -115,20 +100,11 @@ namespace PointObjectDetection.Core
             return (lower, upper);
         }
 
-        /// <summary>
         /// Функция сегментации: проверяет, является ли пиксель объектом
-        /// Объект - если яркость выходит за границы доверительного интервала
-        /// </summary>
-        /// <param name="brightness">Яркость проверяемого пикселя</param>
-        /// <param name="lower">Нижняя граница</param>
-        /// <param name="upper">Верхняя граница</param>
-        /// <returns>true - объект, false - фон</returns>
-        // В файле ThresholdCalculator.cs, метод SegmentPixel
-        // В ThresholdCalculator.cs
         public static bool SegmentPixel(double brightness, double lower, double upper, double stdDev)
         {
-            // Если есть разброс в окрестности (есть контраст)
-            if (stdDev > 10)  // Порог контраста
+            // Если есть разброс в окрестности 
+            if (stdDev > 10) 
             {
                 // Обрезаем границы
                 double effectiveLower = Math.Max(0, lower);

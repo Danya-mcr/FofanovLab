@@ -5,25 +5,20 @@ using System.Drawing.Imaging;
 
 namespace PointObjectDetection.Core
 {
-    /// <summary>
-    /// Класс для перебора пикселей и расчета статистических характеристик
-    /// Разработчик 2 (Данил): Отвечает за пункты: перебор пикселей, оценка μ и σ
-    /// </summary>
+    //Разработчик 2 (Данил)
     public static class StatisticsCalculator
     {
-        /// <summary>
-        /// Расчет среднего значения и стандартного отклонения по окрестности пикселя
-        /// </summary>
+        //Расчет среднего значения и стандартного отклонения по окрестности пикселя
         public static unsafe (double mean, double stdDev) CalculateStatistics(
             Bitmap image, int centerX, int centerY, int windowSize,
-            int objectSide, bool[,] damageMask)
+            bool[,] damageMask)
         {
             int width = image.Width;
             int height = image.Height;
             int radius = windowSize / 2;
             List<double> values = new List<double>(windowSize * windowSize);
 
-            // Блокируем битмап в памяти
+            //Блокируем битмап в памяти
             BitmapData bmpData = image.LockBits(
                 new Rectangle(0, 0, width, height),
                 ImageLockMode.ReadOnly,
@@ -41,16 +36,14 @@ namespace PointObjectDetection.Core
 
                     for (int dx = -radius; dx <= radius; dx++)
                     {
-                        // Исключаем центральный пиксель
                         if (dx == 0 && dy == 0) continue;
 
                         int x = centerX + dx;
                         if (x < 0 || x >= width) continue;
 
-                        // Проверка маски повреждений
                         if (damageMask != null && damageMask[x, y]) continue;
 
-                        // Прямой доступ к байтам (BGR порядок)
+                        // Прямой доступ к байтам
                         byte* pixel = ptr + y * stride + x * 3;
                         double brightness = (pixel[2] + pixel[1] + pixel[0]) / 3.0;
                         values.Add(brightness);
@@ -62,7 +55,6 @@ namespace PointObjectDetection.Core
                 image.UnlockBits(bmpData);
             }
 
-            // Расчет статистики
             if (values.Count == 0) return (0, 0);
 
             double sum = 0;
@@ -73,14 +65,12 @@ namespace PointObjectDetection.Core
             foreach (double val in values)
                 sumSquaredDiff += (val - mean) * (val - mean);
             double variance = sumSquaredDiff / values.Count;
-            double stdDev = Math.Sqrt(variance);
+            double stdDev = Math.Sqrt(variance);    
 
             return (mean, stdDev);
         }
 
-        /// <summary>
-        /// Перебор всех пикселей изображения и применение функции сегментации
-        /// </summary>
+        //Перебор всех пикселей изображения и применение функции сегментации
         public static bool[,] IterateAllPixels(
             Bitmap image,
             bool[,] damageMask,
@@ -99,7 +89,7 @@ namespace PointObjectDetection.Core
                     if (damageMask != null && damageMask[x, y])
                         continue;
 
-                    var (mean, stdDev) = CalculateStatistics(image, x, y, windowSize, objectSide, damageMask);
+                    var (mean, stdDev) = CalculateStatistics(image, x, y, windowSize, damageMask);
                     resultMask[x, y] = segmentationFunc(x, y, mean, stdDev);
                 }
             }

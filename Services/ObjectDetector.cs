@@ -3,9 +3,7 @@ using System.Collections.Generic;
 
 namespace PointObjectDetection.Core
 {
-    /// <summary>
     /// Структура для хранения координат пикселя
-    /// </summary>
     /// Арина
     public struct PixelPoint
     {
@@ -18,13 +16,6 @@ namespace PointObjectDetection.Core
             Y = y;
         }
     }
-
-    /// <summary>
-    /// Структура для хранения границ объекта
-    /// </summary>
-    /// <summary>
-    /// Класс для хранения границ объекта (class вместо struct)
-    /// </summary>
     public class ObjectBounds
     {
         public int MinX;
@@ -52,9 +43,7 @@ namespace PointObjectDetection.Core
         }
     }
 
-    /// <summary>
     /// Класс обнаруженного объекта
-    /// </summary>
     public class DetectedObject
     {
         public int Id { get; set; }
@@ -71,9 +60,7 @@ namespace PointObjectDetection.Core
         }
     }
 
-    /// <summary>
     /// Результат обнаружения
-    /// </summary>
     public class DetectionResult
     {
         public bool ObjectFound { get; set; }
@@ -88,22 +75,9 @@ namespace PointObjectDetection.Core
         }
     }
 
-    /// <summary>
     /// Класс для маркировки связных компонент, отбраковки и принятия решения
-    /// Разработчик 3: Отвечает за пункты: маркировка, отбраковка по площади, принятие решения
-    /// </summary>
     public static class ObjectDetector
     {
-        /// <summary>
-        /// Маркировка связных компонент (4-связность)
-        /// Объединяет соседние пиксели-объекты в группы
-        /// </summary>
-        /// <param name="mask">Бинарная маска (true - объект, false - фон)</param>
-        /// <param name="damageMask">Маска повреждений (true - поврежден, false - целый)</param>
-        /// <returns>Список обнаруженных объектов</returns>
-        /// <summary>
-        /// Маркировка связных компонент (4-связность)
-        /// </summary>
         public static List<DetectedObject> LabelConnectedComponents(bool[,] mask, bool[,] damageMask)
         {
             int width = mask.GetLength(0);
@@ -214,12 +188,7 @@ namespace PointObjectDetection.Core
             return result;
         }
 
-        /// <summary>
         /// Отбраковка объектов по минимальной площади
-        /// </summary>
-        /// <param name="objects">Список объектов</param>
-        /// <param name="minArea">Минимальная площадь (количество пикселей)</param>
-        /// <returns>Отфильтрованный список объектов</returns>
         public static List<DetectedObject> FilterByArea(List<DetectedObject> objects, int minArea)
         {
             List<DetectedObject> result = new List<DetectedObject>();
@@ -233,15 +202,8 @@ namespace PointObjectDetection.Core
             return result;
         }
 
-        /// <summary>
         /// Формирование отчета и принятие решения
-        /// </summary>
-        /// <param name="objects">Обнаруженные объекты</param>
-        /// <param name="windowSize">Размер окрестности</param>
-        /// <param name="falseAlarmProb">Вероятность ложного обнаружения</param>
-        /// <param name="minArea">Минимальная площадь объекта</param>
-        /// <param name="totalPixels">Общее количество пикселей</param>
-        /// <returns>Результат обнаружения с отчетом</returns>
+
         public static DetectionResult MakeDecision(
             List<DetectedObject> objects,
             int windowSize,

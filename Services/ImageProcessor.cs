@@ -5,18 +5,11 @@ using System.IO;
 
 namespace PointObjectDetection.Core
 {
-    /// <summary>
     /// Класс для работы с файлами изображений и маской повреждений
-    /// Разработчик 1 (Алина): Отвечает за пункты: ввод данных, маска повреждений, сохранение результатов
-    /// </summary>
+    /// Разработчик 1 (Алина)
     public static class ImageProcessor
     {
-        /// <summary>
         /// Загрузка изображения из файла
-        /// </summary>
-        /// <param name="filePath">Путь к файлу</param>
-        /// <param name="errorMessage">Сообщение об ошибке (если есть)</param>
-        /// <returns>Загруженное изображение или null</returns>
         public static Bitmap LoadImage(string filePath, out string errorMessage)
         {
             errorMessage = null;
@@ -38,14 +31,7 @@ namespace PointObjectDetection.Core
             }
         }
 
-        /// <summary>
         /// Сохранение результатов
-        /// </summary>
-        /// <param name="filePath">Путь для сохранения</param>
-        /// <param name="reportText">Текст отчета</param>
-        /// <param name="image">Изображение с разметкой</param>
-        /// <param name="errorMessage">Сообщение об ошибке</param>
-        /// <returns>Успешно ли сохранение</returns>
         public static bool SaveResult(string filePath, string reportText, Bitmap image, out string errorMessage)
         {
             errorMessage = null;
@@ -84,17 +70,13 @@ namespace PointObjectDetection.Core
             }
         }
 
-        /// <summary>
         /// Создание новой маски повреждений
-        /// </summary>
         public static bool[,] CreateDamageMask(int width, int height)
         {
             return new bool[width, height];
         }
 
-        /// <summary>
         /// Получение яркости пикселя (для отображения в строке состояния)
-        /// </summary>
         public static byte GetPixelBrightness(Bitmap image, int x, int y)
         {
             if (x < 0 || x >= image.Width || y < 0 || y >= image.Height)
