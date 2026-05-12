@@ -5,7 +5,6 @@ using System.Drawing.Imaging;
 
 namespace PointObjectDetection.Core
 {
-    //Разработчик 2 (Данил)
     public static class StatisticsCalculator
     {
         //Расчет среднего значения и стандартного отклонения по окрестности пикселя
@@ -18,7 +17,7 @@ namespace PointObjectDetection.Core
             int radius = windowSize / 2;
             List<double> values = new List<double>(windowSize * windowSize);
 
-            //Блокируем битмап в памяти
+            //Блокировка битмап в памяти для быстрого доступа
             BitmapData bmpData = image.LockBits(
                 new Rectangle(0, 0, width, height),
                 ImageLockMode.ReadOnly,
@@ -29,6 +28,7 @@ namespace PointObjectDetection.Core
                 byte* ptr = (byte*)bmpData.Scan0.ToPointer();
                 int stride = bmpData.Stride;
 
+                //Перебор пикселей в заданной окрестности
                 for (int dy = -radius; dy <= radius; dy++)
                 {
                     int y = centerY + dy;
@@ -36,14 +36,16 @@ namespace PointObjectDetection.Core
 
                     for (int dx = -radius; dx <= radius; dx++)
                     {
+                        //Исключение центрального пикселя, который может быть объектом
                         if (dx == 0 && dy == 0) continue;
 
                         int x = centerX + dx;
                         if (x < 0 || x >= width) continue;
 
+                        //Пропускаем повреждённые пиксели
                         if (damageMask != null && damageMask[x, y]) continue;
 
-                        // Прямой доступ к байтам
+                        //Прямой доступ к байтам через указатель
                         byte* pixel = ptr + y * stride + x * 3;
                         double brightness = (pixel[2] + pixel[1] + pixel[0]) / 3.0;
                         values.Add(brightness);
@@ -52,15 +54,18 @@ namespace PointObjectDetection.Core
             }
             finally
             {
+                //Разблокируем памяти
                 image.UnlockBits(bmpData);
             }
 
             if (values.Count == 0) return (0, 0);
 
+            //Вычисление среднего
             double sum = 0;
             foreach (double val in values) sum += val;
             double mean = sum / values.Count;
-
+            
+            //Вычисление СКО
             double sumSquaredDiff = 0;
             foreach (double val in values)
                 sumSquaredDiff += (val - mean) * (val - mean);
@@ -82,6 +87,7 @@ namespace PointObjectDetection.Core
             int height = image.Height;
             bool[,] resultMask = new bool[width, height];
 
+            //Построчный обход всех пикселей изображения
             for (int y = 0; y < height; y++)
             {
                 for (int x = 0; x < width; x++)
@@ -89,7 +95,10 @@ namespace PointObjectDetection.Core
                     if (damageMask != null && damageMask[x, y])
                         continue;
 
+                    //Получение статистики по окрестности
                     var (mean, stdDev) = CalculateStatistics(image, x, y, windowSize, damageMask);
+
+                    //Вызов функции сегментации от Разработчика 4,
                     resultMask[x, y] = segmentationFunc(x, y, mean, stdDev);
                 }
             }

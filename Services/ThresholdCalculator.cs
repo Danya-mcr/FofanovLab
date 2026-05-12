@@ -2,119 +2,103 @@ using System;
 
 namespace PointObjectDetection.Core
 {
+    /// <summary>
     /// Разработчик 4 (Оля)
+    /// Вычисление доверительного интервала и сегментация пикселей
+    /// </summary>
     public static class ThresholdCalculator
     {
-        public static double NormalQuantile(double probability)
+        // Кеш для коэффициента k
+        private static double _cachedP = -1;
+        private static double _cachedK;
+
+        /// <summary>
+        /// Вычисление коэффициента k из интегрального уравнения:
+        /// ∫_{-k}^{k} (1/√(2π)) · exp(-x²/2) dx = 1 - p
+        /// Решается через обратную функцию ошибок: k = √2 · erf⁻¹(1-p)
+        /// </summary>
+        public static double GetK(double falseAlarmProb)
         {
-            // Граничные случаи
-            if (probability <= 0) return -10;
-            if (probability >= 1) return 10;
+            // Если p не изменился — возвращаем из кеша
+            if (Math.Abs(_cachedP - falseAlarmProb) < 1e-10)
+                return _cachedK;
 
-            // Симметрия: для p < 0.5 вычисляем через 1-p
-            if (probability < 0.5)
-                return -NormalQuantile(1 - probability);
+            double confidence = 1.0 - falseAlarmProb;
+            _cachedK = Math.Sqrt(2.0) * ErfInv(confidence);
+            _cachedK = Math.Min(_cachedK, 5.0);
+            _cachedP = falseAlarmProb;
 
-            // Коэффициенты для аппроксимации
-            double[] a = {
-                -3.969683028665376e+01,
-                 2.209460984245205e+02,
-                -2.759285104961687e+02,
-                 1.383577518672690e+02,
-                -3.066479806614716e+01,
-                 2.506628277459239e+00
-            };
-
-            double[] b = {
-                -5.447609879822406e+01,
-                 1.615858368580409e+02,
-                -1.556989798598866e+02,
-                 6.680131188771972e+01,
-                -1.328068155288572e+01
-            };
-
-            double[] c = {
-                -7.784894002430293e-03,
-                -3.223964580411365e-01,
-                -2.400758277161838e+00,
-                -2.549732539343734e+00,
-                 4.374664141464968e+00,
-                 2.938163982698783e+00
-            };
-
-            double[] d = {
-                 7.784695709041462e-03,
-                 3.224671290700398e-01,
-                 2.445134137142996e+00,
-                 3.754408661907416e+00
-            };
-
-            double q = probability - 0.5;
-            double r;
-
-            // Область центральной части (|q| <= 0.425)
-            if (Math.Abs(q) <= 0.425)
-            {
-                r = 0.180625 - q * q;
-                return q * (((((a[5] * r + a[4]) * r + a[3]) * r + a[2]) * r + a[1]) * r + a[0]) /
-                         ((((b[4] * r + b[3]) * r + b[2]) * r + b[1]) * r + b[0]);
-            }
-
-            // Область хвостов
-            r = (q < 0) ? probability : 1 - probability;
-            r = Math.Sqrt(-Math.Log(r));
-
-            double result = (((((c[5] * r + c[4]) * r + c[3]) * r + c[2]) * r + c[1]) * r + c[0]) /
-                            ((((d[3] * r + d[2]) * r + d[1]) * r + d[0]));
-
-            return (q < 0) ? -result : result;
+            return _cachedK;
         }
 
-        /// Вычисление границ доверительного интервала
+        /// <summary>
+        /// Вычисление границ доверительного интервала [μ - kσ, μ + kσ]
+        /// </summary>
         public static (double lower, double upper) ComputeBounds(
-            double mean,
-            double stdDev,
-            double falseAlarmProb)
+            double mean, double stdDev, double falseAlarmProb)
         {
-            double lower, upper;
+            double k = GetK(falseAlarmProb);
 
-            // Если нет разброса
-            if (stdDev < 0.001)
-            {
-                lower = mean - 5;
-                upper = mean + 5;
-            }
-            else
-            {
-                double k = NormalQuantile(1 - falseAlarmProb / 2);
-                k = Math.Min(k, 5.0);
+            double lower = mean - k * stdDev;
+            double upper = mean + k * stdDev;
 
-                lower = mean - k * stdDev;
-                upper = mean + k * stdDev;
-            }
-
-            // Обрезаем до физических пределов ВСЕГДА
+            // Обрезаем до физических пределов яркости [0, 255]
             lower = Math.Max(0, lower);
             upper = Math.Min(255, upper);
 
             return (lower, upper);
         }
 
-        /// Функция сегментации: проверяет, является ли пиксель объектом
-        public static bool SegmentPixel(double brightness, double lower, double upper, double stdDev)
+        /// <summary>
+        /// Сегментация: проверка, является ли пиксель объектом
+        /// </summary>
+        public static bool SegmentPixel(
+            double brightness, double lower, double upper, double stdDev)
         {
-            // Если есть разброс в окрестности 
-            if (stdDev > 10) 
+            // Контрастный фон: используем обрезанные границы
+            if (stdDev > 10)
             {
-                // Обрезаем границы
                 double effectiveLower = Math.Max(0, lower);
                 double effectiveUpper = Math.Min(255, upper);
-
                 return brightness <= effectiveLower || brightness >= effectiveUpper;
             }
 
-            // Если контраста нет - используем обычную проверку
+            // Однородный фон: используем исходные границы
             return brightness < lower || brightness > upper;
+        }
+
+        // ============ ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ============
+
+        /// <summary>
+        /// Функция ошибок (error function)
+        /// erf(x) = (2/√π) · ∫₀ˣ exp(-t²) dt
+        /// Аппроксимация с точностью ~1.5·10⁻⁷
+        /// </summary>
+        private static double Erf(double x)
+        {
+            double sign = Math.Sign(x);
+            x = Math.Abs(x);
+
+            double t = 1.0 / (1.0 + 0.3275911 * x);
+            double result = 1.0 - (((((1.061405429 * t - 1.453152027) * t)
+                + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t
+                * Math.Exp(-x * x);
+
+            return sign * result;
+        }
+
+        /// <summary>
+        /// Обратная функция ошибок
+        /// Аппроксимация для |x| < 1
+        /// </summary>
+        private static double ErfInv(double x)
+        {
+            double a = 0.147;
+            double ln = Math.Log(1 - x * x);
+            double part1 = 2.0 / (Math.PI * a) + ln / 2.0;
+            double part2 = ln / a;
+
+            return Math.Sign(x) * Math.Sqrt(Math.Sqrt(part1 * part1 - part2) - part1);
         }
     }
 }
