@@ -3,8 +3,7 @@ using System.Collections.Generic;
 
 namespace PointObjectDetection.Core
 {
-    /// Структура для хранения координат пикселя
-    /// Арина
+    //Структура для хранения координат пикселя
     public struct PixelPoint
     {
         public int X;
@@ -43,7 +42,7 @@ namespace PointObjectDetection.Core
         }
     }
 
-    /// Класс обнаруженного объекта
+    //Класс обнаруженного объекта
     public class DetectedObject
     {
         public int Id { get; set; }
@@ -60,7 +59,7 @@ namespace PointObjectDetection.Core
         }
     }
 
-    /// Результат обнаружения
+    //Результат обнаружения
     public class DetectionResult
     {
         public bool ObjectFound { get; set; }
@@ -75,7 +74,7 @@ namespace PointObjectDetection.Core
         }
     }
 
-    /// Класс для маркировки связных компонент, отбраковки и принятия решения
+    //Класс для маркировки связных компонент, отбраковки и принятия решения
     public static class ObjectDetector
     {
         public static List<DetectedObject> LabelConnectedComponents(bool[,] mask, bool[,] damageMask)
@@ -98,19 +97,19 @@ namespace PointObjectDetection.Core
 
                     if (leftLabel == 0 && upLabel == 0)
                     {
-                        // Новый объект
+                        //Новый объект
                         labels[x, y] = nextId;
                         objects.Add(new DetectedObject(nextId, x, y));
                         nextId++;
                     }
                     else if (leftLabel != 0 && upLabel == 0)
                     {
-                        // Присоединяем к левому
+                        //Присоединяем к левому
                         labels[x, y] = leftLabel;
                         DetectedObject obj = objects[leftLabel - 1];
                         obj.PixelCount++;
                         obj.Pixels.Add(new PixelPoint(x, y));
-                        // ВАЖНО: обновляем границы правильно
+
                         if (x < obj.Bounds.MinX) obj.Bounds.MinX = x;
                         if (x > obj.Bounds.MaxX) obj.Bounds.MaxX = x;
                         if (y < obj.Bounds.MinY) obj.Bounds.MinY = y;
@@ -123,7 +122,7 @@ namespace PointObjectDetection.Core
                         DetectedObject obj = objects[upLabel - 1];
                         obj.PixelCount++;
                         obj.Pixels.Add(new PixelPoint(x, y));
-                        // ВАЖНО: обновляем границы правильно
+ 
                         if (x < obj.Bounds.MinX) obj.Bounds.MinX = x;
                         if (x > obj.Bounds.MaxX) obj.Bounds.MaxX = x;
                         if (y < obj.Bounds.MinY) obj.Bounds.MinY = y;
@@ -131,7 +130,7 @@ namespace PointObjectDetection.Core
                     }
                     else
                     {
-                        // Объединение двух компонент
+                        //Объединение двух компонент
                         int minLabel = Math.Min(leftLabel, upLabel);
                         int maxLabel = Math.Max(leftLabel, upLabel);
                         labels[x, y] = minLabel;
@@ -141,11 +140,11 @@ namespace PointObjectDetection.Core
                             DetectedObject objMin = objects[minLabel - 1];
                             DetectedObject objMax = objects[maxLabel - 1];
 
-                            // Перемещаем пиксели
+                            //Перемещаем пиксели
                             objMin.PixelCount += objMax.PixelCount;
                             objMin.Pixels.AddRange(objMax.Pixels);
 
-                            // Обновляем границы - берем минимум и максимум из обоих
+                            //Обновляем границы - берем минимум и максимум из обоих
                             objMin.Bounds.MinX = Math.Min(objMin.Bounds.MinX, objMax.Bounds.MinX);
                             objMin.Bounds.MinY = Math.Min(objMin.Bounds.MinY, objMax.Bounds.MinY);
                             objMin.Bounds.MaxX = Math.Max(objMin.Bounds.MaxX, objMax.Bounds.MaxX);
@@ -153,7 +152,7 @@ namespace PointObjectDetection.Core
 
                             objects[maxLabel - 1] = null;
 
-                            // Переназначаем метки
+                            //Переназначаем метки
                             for (int i = 0; i < height; i++)
                             {
                                 for (int j = 0; j < width; j++)
@@ -164,11 +163,11 @@ namespace PointObjectDetection.Core
                             }
                         }
 
-                        // Добавляем текущий пиксель
+                        //Добавляем текущий пиксель
                         DetectedObject objCurrent = objects[minLabel - 1];
                         objCurrent.PixelCount++;
                         objCurrent.Pixels.Add(new PixelPoint(x, y));
-                        // ВАЖНО: обновляем границы
+
                         if (x < objCurrent.Bounds.MinX) objCurrent.Bounds.MinX = x;
                         if (x > objCurrent.Bounds.MaxX) objCurrent.Bounds.MaxX = x;
                         if (y < objCurrent.Bounds.MinY) objCurrent.Bounds.MinY = y;
@@ -177,7 +176,7 @@ namespace PointObjectDetection.Core
                 }
             }
 
-            // Удаляем null-объекты
+            //Удаляем null-объекты
             List<DetectedObject> result = new List<DetectedObject>();
             foreach (var obj in objects)
             {
@@ -188,7 +187,7 @@ namespace PointObjectDetection.Core
             return result;
         }
 
-        /// Отбраковка объектов по минимальной площади
+        //Отбраковка объектов по минимальной площади
         public static List<DetectedObject> FilterByArea(List<DetectedObject> objects, int minArea)
         {
             List<DetectedObject> result = new List<DetectedObject>();
@@ -202,8 +201,7 @@ namespace PointObjectDetection.Core
             return result;
         }
 
-        /// Формирование отчета и принятие решения
-
+        //Формирование отчета и принятие решения
         public static DetectionResult MakeDecision(
             List<DetectedObject> objects,
             int windowSize,
@@ -216,7 +214,7 @@ namespace PointObjectDetection.Core
             result.ObjectsCount = objects.Count;
             result.Objects = objects;
 
-            // Формируем отчет
+            //Формируем отчет
             result.Report = "=== РЕЗУЛЬТАТ ОБНАРУЖЕНИЯ ===\n\n";
             result.Report += $"Параметры:\n";
             result.Report += $"  Размер окрестности: {windowSize}x{windowSize}\n";

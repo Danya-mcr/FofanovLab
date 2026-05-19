@@ -47,7 +47,7 @@ namespace PointObjectDetection.Core
 
                         //Прямой доступ к байтам через указатель
                         byte* pixel = ptr + y * stride + x * 3;
-                        double brightness = (pixel[2] + pixel[1] + pixel[0]) / 3.0;
+                        double brightness = 0.299 * pixel[2] + 0.587 * pixel[1] + 0.114 * pixel[0];
                         values.Add(brightness);
                     }
                 }

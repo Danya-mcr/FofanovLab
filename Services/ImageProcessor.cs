@@ -5,11 +5,10 @@ using System.IO;
 
 namespace PointObjectDetection.Core
 {
-    /// Класс для работы с файлами изображений и маской повреждений
-    /// Разработчик 1 (Алина)
+    //Класс для работы с файлами изображений и маской повреждений
     public static class ImageProcessor
     {
-        /// Загрузка изображения из файла
+        //Загрузка изображения из файла
         public static Bitmap LoadImage(string filePath, out string errorMessage)
         {
             errorMessage = null;
@@ -31,7 +30,7 @@ namespace PointObjectDetection.Core
             }
         }
 
-        /// Сохранение результатов
+        //Сохранение результатов
         public static bool SaveResult(string filePath, string reportText, Bitmap image, out string errorMessage)
         {
             errorMessage = null;
@@ -70,13 +69,13 @@ namespace PointObjectDetection.Core
             }
         }
 
-        /// Создание новой маски повреждений
+        //Создание новой маски повреждений
         public static bool[,] CreateDamageMask(int width, int height)
         {
             return new bool[width, height];
         }
 
-        /// Получение яркости пикселя (для отображения в строке состояния)
+        //Получение яркости пикселя (для отображения в строке состояния)
         public static byte GetPixelBrightness(Bitmap image, int x, int y)
         {
             if (x < 0 || x >= image.Width || y < 0 || y >= image.Height)

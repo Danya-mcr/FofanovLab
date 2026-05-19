@@ -8,13 +8,13 @@ namespace PointObjectDetection.UI
 {
     public partial class Form1 : Form
     {
-        // Данные
+        //Данные
         private Bitmap _originalImage;
         private Bitmap _resultImage;
         private bool[,] _damageMask;
         private string _currentImagePath;
 
-        // UI элементы
+        //UI элементы
         private MenuStrip _menuStrip;
         private ToolStrip _toolStrip;
         private PictureBox _pictureBox;
@@ -38,7 +38,7 @@ namespace PointObjectDetection.UI
         private Label _lblUpper;
         private TextBox _txtResults;
 
-        // Текущие значения статистики (для отображения)
+        //Текущие значения статистики (для отображения)
         private double _currentMean;
         private double _currentStdDev;
         private double _currentLower;
@@ -56,7 +56,6 @@ namespace PointObjectDetection.UI
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor = SystemColors.Control;
 
-            // ========== MENU ==========
             _menuStrip = new MenuStrip();
             ToolStripMenuItem fileMenu = new ToolStripMenuItem("Файл");
             fileMenu.DropDownItems.Add(new ToolStripMenuItem("Открыть", null, (s, e) => OpenImage()));
@@ -65,13 +64,13 @@ namespace PointObjectDetection.UI
             _menuStrip.Items.Add(fileMenu);
             this.MainMenuStrip = _menuStrip;
 
-            // ========== TOOLSTRIP ==========
+            //TOOLSTRIP
             _toolStrip = new ToolStrip();
             _toolStrip.Items.Add(new ToolStripButton("Открыть", null, (s, e) => OpenImage()) { ToolTipText = "Открыть изображение (Ctrl+O)" });
             _toolStrip.Items.Add(new ToolStripButton("Обнаружить", null, (s, e) => DetectObjects()) { ToolTipText = "Запустить обнаружение (Ctrl+D)" });
             _toolStrip.Items.Add(new ToolStripButton("Сохранить", null, (s, e) => SaveResult()) { ToolTipText = "Сохранить результат (Ctrl+S)" });
 
-            // ========== PICTUREBOX ==========
+            //PICTUREBOX 
             _pictureBox = new PictureBox()
             {
                 // Dock = DockStyle.Fill, // Убираем Dock
@@ -90,7 +89,7 @@ namespace PointObjectDetection.UI
             picturePanel.Controls.Add(_pictureBox);
             picturePanel.Cursor = Cursors.Cross;
 
-            // ========== RIGHT PANEL ==========
+            //RIGHT PANEL
             _rightPanel = new Panel()
             {
                 Dock = DockStyle.Right,
@@ -98,7 +97,7 @@ namespace PointObjectDetection.UI
                 Padding = new Padding(10)
             };
 
-            // ---- Параметры ----
+            //Параметры
             _paramsBox = new GroupBox()
             {
                 Text = "Параметры обнаружения",
@@ -127,7 +126,7 @@ namespace PointObjectDetection.UI
 
             _paramsBox.Controls.AddRange(new Control[] { lblWindow, _nudWindowSize, lblProb, _nudFalseAlarmProb, lblObject, _nudObjectSide, _btnDamageMask });
 
-            // ---- Статистика ----
+            //Статистика
             _statsBox = new GroupBox()
             {
                 Text = "Статистика по окрестности",
@@ -147,7 +146,7 @@ namespace PointObjectDetection.UI
 
             _statsBox.Controls.AddRange(new Control[] { _lblMean, _lblStdDev, _lblLower, _lblUpper });
 
-            // ---- Действия ----
+            //Действия
             _actionsBox = new GroupBox()
             {
                 Text = "Действия",
@@ -164,7 +163,7 @@ namespace PointObjectDetection.UI
 
             _actionsBox.Controls.AddRange(new Control[] { _btnDetect, _btnSave });
 
-            // ---- Результаты ----
+            //Результаты
             _resultsBox = new GroupBox()
             {
                 Text = "Результаты",
@@ -183,25 +182,25 @@ namespace PointObjectDetection.UI
 
             _resultsBox.Controls.Add(_txtResults);
 
-            // Собираем правую панель
+            //Собираем правую панель
             _rightPanel.Controls.Add(_resultsBox);
             _rightPanel.Controls.Add(_actionsBox);
             _rightPanel.Controls.Add(_statsBox);
             _rightPanel.Controls.Add(_paramsBox);
 
-            // ========== STATUS STRIP ==========
+            //STATUS STRIP
             _statusStrip = new StatusStrip();
             _statusLabel = new ToolStripStatusLabel("Готов к работе. Откройте изображение.");
             _statusStrip.Items.Add(_statusLabel);
 
-            // ========== СБОРКА ==========
+            //СБОРКА
             this.Controls.Add(picturePanel);
             this.Controls.Add(_rightPanel);
             this.Controls.Add(_statusStrip);
             this.Controls.Add(_toolStrip);
             this.Controls.Add(_menuStrip);
 
-            // Горячие клавиши
+            //Горячие клавиши
             this.KeyPreview = true;
             this.KeyDown += (s, e) =>
             {
@@ -211,7 +210,7 @@ namespace PointObjectDetection.UI
             };
         }
 
-        /// Открытие изображения
+        //Открытие изображения
         private void OpenImage()
         {
             using (OpenFileDialog ofd = new OpenFileDialog())
@@ -230,7 +229,7 @@ namespace PointObjectDetection.UI
                         return;
                     }
 
-                    // КОНВЕРТАЦИЯ В 24-БИТНОЕ ИЗОБРАЖЕНИЕ
+                    //КОНВЕРТАЦИЯ В 24-БИТНОЕ ИЗОБРАЖЕНИЕ
                     _originalImage = new Bitmap(loadedImage.Width, loadedImage.Height, PixelFormat.Format24bppRgb);
                     using (Graphics g = Graphics.FromImage(_originalImage))
                     {
@@ -248,7 +247,7 @@ namespace PointObjectDetection.UI
             }
         }
 
-        /// Редактирование маски повреждений
+        //Редактирование маски повреждений
         private void EditDamageMask()
         {
             if (_originalImage == null)
@@ -265,9 +264,9 @@ namespace PointObjectDetection.UI
 
             PictureBox pb = new PictureBox();
             pb.Dock = DockStyle.Fill;
-            pb.SizeMode = PictureBoxSizeMode.Zoom;  // Zoom с сохранением пропорций
+            pb.SizeMode = PictureBoxSizeMode.Zoom;  //Zoom с сохранением пропорций
 
-            // Создаём начальное отображение
+            //Создаём начальное отображение
             Bitmap initDisplay = new Bitmap(_originalImage);
             for (int ix = 0; ix < _originalImage.Width; ix++)
             {
@@ -281,38 +280,38 @@ namespace PointObjectDetection.UI
 
             pb.MouseClick += (s, e) =>
             {
-                // Размеры PictureBox
+                //Размеры PictureBox
                 int pbWidth = pb.ClientSize.Width;
                 int pbHeight = pb.ClientSize.Height;
 
-                // Размеры исходного изображения
+                //Размеры исходного изображения
                 int imgWidth = _originalImage.Width;
                 int imgHeight = _originalImage.Height;
 
-                // Масштаб Zoom (как у PictureBox)
+                //Масштаб Zoom (как у PictureBox)
                 float scale = Math.Min(
                     (float)pbWidth / imgWidth,
                     (float)pbHeight / imgHeight);
 
-                // Размер отображаемого изображения
+                //Размер отображаемого изображения
                 int displayedWidth = (int)(imgWidth * scale);
                 int displayedHeight = (int)(imgHeight * scale);
 
-                // Смещение из-за центрирования
+                //Смещение из-за центрирования
                 int offsetX = (pbWidth - displayedWidth) / 2;
                 int offsetY = (pbHeight - displayedHeight) / 2;
 
-                // Координаты мыши относительно изображения
+                //Координаты мыши относительно изображения
                 int adjustedX = e.X - offsetX;
                 int adjustedY = e.Y - offsetY;
 
-                // Клик за пределами изображения — игнорируем
+                //Клик за пределами изображения — игнорируем
                 if (adjustedX < 0 || adjustedY < 0 ||
                     adjustedX >= displayedWidth ||
                     adjustedY >= displayedHeight)
                     return;
 
-                // Перевод в координаты исходного изображения
+                //Перевод в координаты исходного изображения
                 int x = (int)(adjustedX / scale);
                 int y = (int)(adjustedY / scale);
 
@@ -321,10 +320,10 @@ namespace PointObjectDetection.UI
                     y < 0 || y >= _originalImage.Height)
                     return;
 
-                // Инвертируем маску
+                //Инвертируем маску
                 _damageMask[x, y] = !_damageMask[x, y];
 
-                // Обновляем отображение
+                //Обновляем отображение
                 Bitmap display = new Bitmap(_originalImage);
                 for (int ix = 0; ix < _originalImage.Width; ix++)
                 {
@@ -343,7 +342,7 @@ namespace PointObjectDetection.UI
             _pictureBox.Image = _originalImage;
         }
 
-        /// Запуск обнаружения объектов
+        //Запуск обнаружения объектов
         private void DetectObjects()
         {
             if (_originalImage == null)
@@ -361,12 +360,12 @@ namespace PointObjectDetection.UI
                 int objectSide = (int)_nudObjectSide.Value;
                 int minArea = objectSide * objectSide;
 
-                // Счетчик для обновления UI не на каждом пикселе (для производительности)
+                //Счетчик для обновления UI не на каждом пикселе (для производительности)
                 int totalPixels = _originalImage.Width * _originalImage.Height;
                 int processedPixels = 0;
-                int updateInterval = Math.Max(1, totalPixels / 100); // Обновляем ~100 раз за проход
+                int updateInterval = Math.Max(1, totalPixels / 100); //Обновляем ~100 раз за проход
 
-                // Функция сегментации (Разработчик 4)
+                //Функция сегментации (Разработчик 4)
                 Func<int, int, double, double, bool> segmentationFunc = (x, y, mean, stdDev) =>
                 {
                     var (lower, upper) = ThresholdCalculator.ComputeBounds(mean, stdDev, falseAlarmProb);
@@ -374,7 +373,7 @@ namespace PointObjectDetection.UI
                     Color pixel = _originalImage.GetPixel(x, y);
                     byte brightness = (byte)((pixel.R + pixel.G + pixel.B) / 3);
 
-                    // Обновляем статистику периодически, а не каждый пиксель
+                    //Обновляем статистику периодически, а не каждый пиксель
                     processedPixels++;
                     if (processedPixels % updateInterval == 0 || processedPixels == totalPixels)
                     {
@@ -383,18 +382,18 @@ namespace PointObjectDetection.UI
                         _currentLower = lower;
                         _currentUpper = upper;
 
-                        // Асинхронное обновление UI
+                        //Асинхронное обновление UI
                         BeginInvoke(new Action(() => {
                             UpdateStatsDisplay();
                             UpdateStatus("Обработка: {0:F1}%", (processedPixels * 100.0) / totalPixels);
                         }));
                     }
 
-                    // ВОЗВРАЩАЕМ РЕЗУЛЬТАТ СЕГМЕНТАЦИИ (с stdDev!)
+                    //ВОЗВРАЩАЕМ РЕЗУЛЬТАТ СЕГМЕНТАЦИИ (с stdDev!)
                     return ThresholdCalculator.SegmentPixel(brightness, lower, upper, stdDev);
                 };
 
-                // Перебор пикселей (Разработчик 2)
+                //Перебор пикселей (Разработчик 2)
                 bool[,] objectMask = StatisticsCalculator.IterateAllPixels(
                     _originalImage,
                     _damageMask,
@@ -402,20 +401,20 @@ namespace PointObjectDetection.UI
                     objectSide,
                     segmentationFunc);
 
-                // Маркировка связных компонент (Разработчик 3)
+                //Маркировка связных компонент (Разработчик 3)
                 var allObjects = ObjectDetector.LabelConnectedComponents(objectMask, _damageMask);
 
-                // Отбраковка по площади (Разработчик 3)
+                //Отбраковка по площади (Разработчик 3)
                 var filteredObjects = ObjectDetector.FilterByArea(allObjects, minArea);
 
-                // Принятие решения и формирование отчета (Разработчик 3)
+                //Принятие решения и формирование отчета (Разработчик 3)
                 var result = ObjectDetector.MakeDecision(filteredObjects, windowSize, falseAlarmProb, minArea,
                     _originalImage.Width * _originalImage.Height);
 
-                // Отображение результатов
+                //Отображение результатов
                 _txtResults.Text = result.Report;
 
-                // Визуализация
+                //Визуализация
                 _resultImage = VisualizeResults(filteredObjects);
                 _pictureBox.Image = _resultImage;
 
@@ -428,13 +427,13 @@ namespace PointObjectDetection.UI
             }
         }
 
-        /// Визуализация обнаруженных объектов - только четкая рамка
+        // Визуализация обнаруженных объектов - только четкая рамка
         private Bitmap VisualizeResults(List<DetectedObject> objects)
         {
             Bitmap result = new Bitmap(_originalImage);
             using (Graphics g = Graphics.FromImage(result))
             {
-                // Используем предопределенные яркие цвета
+                //Используем предопределенные яркие цвета
                 Color[] colors = new Color[]
                 {
                     Color.Red,
@@ -448,7 +447,7 @@ namespace PointObjectDetection.UI
                 };
 
                 int colorIndex = 0;
-                int padding = 10; // Отступ от границ объекта (рамка будет снаружи)
+                int padding = 10; //Отступ от границ объекта (рамка будет снаружи)
 
                 foreach (var obj in objects)
                 {
@@ -470,7 +469,7 @@ namespace PointObjectDetection.UI
             return result;
         }
 
-        /// Сохранение результатов
+        //Сохранение результатов
         private void SaveResult()
         {
             if (_resultImage == null && string.IsNullOrEmpty(_txtResults.Text))
@@ -511,7 +510,7 @@ namespace PointObjectDetection.UI
             }
         }
 
-        /// Обновление отображения статистики в UI
+        //Обновление отображения статистики в UI
         private void UpdateStatsDisplay()
         {
             if (InvokeRequired)
@@ -526,7 +525,7 @@ namespace PointObjectDetection.UI
             _lblUpper.Text = $"Верхняя граница: {_currentUpper:F2}";
         }
 
-        /// Обновление строки состояния
+        //Обновление строки состояния
         private void UpdateStatus(string format, params object[] args)
         {
             if (InvokeRequired)
@@ -538,7 +537,7 @@ namespace PointObjectDetection.UI
             _statusLabel.Text = string.Format(format, args);
         }
 
-        /// Отображение информации о пикселе под курсором
+        //Отображение информации о пикселе под курсором
         private void PictureBox_MouseMove(object sender, MouseEventArgs e)
         {
             if (_originalImage == null)
@@ -547,7 +546,7 @@ namespace PointObjectDetection.UI
                 return;
             }
 
-            // Учитываем скролл при расчете координат
+            //Учитываем скролл при расчете координат
             Point scrollOffset = ((Panel)_pictureBox.Parent).AutoScrollPosition;
 
             float scaleX = (float)_originalImage.Width / _pictureBox.Width;

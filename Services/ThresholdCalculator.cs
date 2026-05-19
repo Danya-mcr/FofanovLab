@@ -2,21 +2,12 @@ using System;
 
 namespace PointObjectDetection.Core
 {
-    /// <summary>
-    /// Разработчик 4 (Оля)
-    /// Вычисление доверительного интервала и сегментация пикселей
-    /// </summary>
     public static class ThresholdCalculator
     {
-        // Кеш для коэффициента k
+        //Кеш для коэффициента k
         private static double _cachedP = -1;
         private static double _cachedK;
 
-        /// <summary>
-        /// Вычисление коэффициента k из интегрального уравнения:
-        /// ∫_{-k}^{k} (1/√(2π)) · exp(-x²/2) dx = 1 - p
-        /// Решается через обратную функцию ошибок: k = √2 · erf⁻¹(1-p)
-        /// </summary>
         public static double GetK(double falseAlarmProb)
         {
             // Если p не изменился — возвращаем из кеша
@@ -31,9 +22,7 @@ namespace PointObjectDetection.Core
             return _cachedK;
         }
 
-        /// <summary>
-        /// Вычисление границ доверительного интервала [μ - kσ, μ + kσ]
-        /// </summary>
+        //Вычисление границ доверительного интервала
         public static (double lower, double upper) ComputeBounds(
             double mean, double stdDev, double falseAlarmProb)
         {
@@ -42,20 +31,18 @@ namespace PointObjectDetection.Core
             double lower = mean - k * stdDev;
             double upper = mean + k * stdDev;
 
-            // Обрезаем до физических пределов яркости [0, 255]
+            //Обрезаем до физических пределов яркости [0, 255]
             lower = Math.Max(0, lower);
             upper = Math.Min(255, upper);
 
             return (lower, upper);
         }
 
-        /// <summary>
-        /// Сегментация: проверка, является ли пиксель объектом
-        /// </summary>
+        //Сегментация
         public static bool SegmentPixel(
             double brightness, double lower, double upper, double stdDev)
         {
-            // Контрастный фон: используем обрезанные границы
+            //Контрастный фон: используем обрезанные границы
             if (stdDev > 10)
             {
                 double effectiveLower = Math.Max(0, lower);
@@ -63,17 +50,12 @@ namespace PointObjectDetection.Core
                 return brightness <= effectiveLower || brightness >= effectiveUpper;
             }
 
-            // Однородный фон: используем исходные границы
+            //Однородный фон: используем исходные границы
             return brightness < lower || brightness > upper;
         }
 
-        // ============ ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ============
 
-        /// <summary>
-        /// Функция ошибок (error function)
-        /// erf(x) = (2/√π) · ∫₀ˣ exp(-t²) dt
-        /// Аппроксимация с точностью ~1.5·10⁻⁷
-        /// </summary>
+        //Аппроксимация с точностью
         private static double Erf(double x)
         {
             double sign = Math.Sign(x);
@@ -87,10 +69,8 @@ namespace PointObjectDetection.Core
             return sign * result;
         }
 
-        /// <summary>
-        /// Обратная функция ошибок
-        /// Аппроксимация для |x| < 1
-        /// </summary>
+        //Обратная функция ошибок
+        //Аппроксимация для abs(x) < 1
         private static double ErfInv(double x)
         {
             double a = 0.147;
